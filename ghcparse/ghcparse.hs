@@ -1,8 +1,11 @@
 {-#LANGUAGE BangPatterns #-}
+{-#LANGUAGE ScopedTypeVariables #-}
+
 import GHC hiding (parser)
 import ErrUtils
 import FastString
 import HeaderInfo
+import HscTypes
 import Lexer
 import Parser
 import Outputable
@@ -17,6 +20,7 @@ import DynFlags
 import Data.List (partition)
 import System.Environment (getArgs)
 import System.IO
+import Control.Exception (catch)
 import System.FilePath.Find as Find
     (extension, fileName, find, (&&?),
      (/~?), (==?))
@@ -57,9 +61,10 @@ runParser flags path buf parser = unP parser parseState
 augmentDflags :: DynFlags -> StringBuffer -> FilePath -> IO DynFlags
 augmentDflags dflags0 buf path = do
   let src_opts    =  getOptions dflags0 buf path
-  (dflags1, _, _) <- parseDynamicFilePragma dflags0 src_opts
+  (dflags1, _, _) <- catch
+      (parseDynamicFilePragma dflags0 src_opts)
+      (\(_::SourceError) -> return (dflags0, undefined, undefined))
   return dflags1
-
 
 initDflags :: IO DynFlags
 initDflags = do
