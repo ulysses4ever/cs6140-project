@@ -31,7 +31,7 @@ main :: IO ()
 main = do
     args <- getArgs
     hsFiles <- findHsSources (head args)
-    dflags <- initDflags
+    !dflags <- initDflags
     !res <- Control.Monad.Parallel.mapM (parse dflags) hsFiles
     -- !res <- Prelude.mapM (parse dflags) hsFiles
     let (succR, _) = partition (== True) res
