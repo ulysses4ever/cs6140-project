@@ -1,15 +1,18 @@
 {-#LANGUAGE BangPatterns #-}
-import GHC
+import GHC hiding (parser)
 import ErrUtils
 import FastString
+import HeaderInfo
 import Lexer
 import Parser
 import Outputable
 import SrcLoc
-import StringBuffer
+import StringBuffer hiding (buf)
 import SysTools
 import GHC.Paths ( libdir )
-import DynFlags ( initDynFlags, defaultDynFlags )
+import DynFlags
+  ( initDynFlags, defaultDynFlags, parseDynamicFlagsCmdLine,
+    parseDynamicFilePragma )
 
 import Data.List (partition)
 import System.Environment (getArgs)
@@ -26,7 +29,7 @@ main = do
     hsFiles <- findHsSources (head args)
     dflags <- initDflags
     !res <- Control.Monad.Parallel.mapM (parse dflags) hsFiles
-    -- !res <- Prelude.mapM parse hsFiles
+    -- !res <- Prelude.mapM (parse dflags) hsFiles
     let (succR, _) = partition (== True) res
         totalFiles   = length res
         rate = fromIntegral (length succR) / 
@@ -35,25 +38,38 @@ main = do
     putStrLn $ "Parser success rate:.. " ++ show (rate :: Double)
 
 parse :: DynFlags -> String -> IO Bool
-parse dflags file = do
+parse dflags0 file = do
     con <- myReadFile file
-    let !pres = runParser dflags file con Parser.parseModule
-    printParseRes dflags file pres
+    let buf = stringToStringBuffer con
+    dflags1 <- augmentDflags dflags0 buf file
+    --let dflags1 = dflags0
+    let !pres = runParser dflags1 file buf Parser.parseModule
+    --printParseRes dflags1 file pres
     return $ presToBool pres
 
-runParser :: DynFlags -> String -> String -> P a -> ParseResult a
-runParser flags filename str parser = unP parser parseState
+runParser :: DynFlags -> String -> StringBuffer -> P a -> ParseResult a
+runParser flags path buf parser = unP parser parseState
     where
-      location = mkRealSrcLoc (mkFastString filename) 1 1
-      buf = stringToStringBuffer str
+      location = mkRealSrcLoc (mkFastString path) 1 1
       parseState = mkPState flags buf location
+
+-- account for lang extensions
+augmentDflags :: DynFlags -> StringBuffer -> FilePath -> IO DynFlags
+augmentDflags dflags0 buf path = do
+  let src_opts    =  getOptions dflags0 buf path
+  (dflags1, _, _) <- parseDynamicFilePragma dflags0 src_opts
+  return dflags1
+
 
 initDflags :: IO DynFlags
 initDflags = do
     let ldir = Just libdir
     mySettings <- initSysTools ldir
     myLlvmConfig <- initLlvmConfig ldir
-    initDynFlags (defaultDynFlags mySettings myLlvmConfig)
+    dflags1 <- initDynFlags (defaultDynFlags mySettings myLlvmConfig)
+    (dflags2, _, _) <-
+      parseDynamicFlagsCmdLine dflags1 [GHC.noLoc "-hide-all-packages"]
+    return dflags2
 
 presToBool :: ParseResult a -> Bool
 presToBool (POk{}) = True

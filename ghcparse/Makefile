@@ -10,4 +10,4 @@ deps:
 	cabal v2-install --enable-library-profiling filemanip --lib
 
 clean:
-	rm ghcparse.o ghcparse.hi ghcparse *~
+	rm -f ghcparse.o ghcparse.hi ghcparse *~
