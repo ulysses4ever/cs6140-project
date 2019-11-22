@@ -3,6 +3,9 @@
 ghcparse: ghcparse.hs
 	ghc -O2 -rtsopts -threaded -package ghc -package ghc-paths -package filemanip -package monad-parallel ghcparse.hs
 
+ghcparse-prof: ghcparse.hs
+	ghc -O2 -rtsopts -threaded -prof -fprof-auto -package ghc -package ghc-paths -package filemanip -package monad-parallel ghcparse.hs
+
 deps:
 	cabal update
 	cabal v2-install --enable-library-profiling ghc-paths --lib

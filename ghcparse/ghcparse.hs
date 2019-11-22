@@ -6,6 +6,7 @@ import ErrUtils
 import FastString
 import HeaderInfo
 import HscTypes
+import HsDumpAst
 import Lexer
 import Parser
 import Outputable
@@ -17,6 +18,7 @@ import DynFlags
   ( initDynFlags, defaultDynFlags, parseDynamicFlagsCmdLine,
     parseDynamicFilePragma )
 
+import Data.Data
 import Data.List (partition)
 import System.Environment (getArgs)
 import System.IO
@@ -43,11 +45,10 @@ main = do
 
 parse :: DynFlags -> String -> IO Bool
 parse dflags0 file = do
-    con <- myReadFile file
-    let buf = stringToStringBuffer con
+    buf <- hGetStringBuffer file
     dflags1 <- augmentDflags dflags0 buf file
     --let dflags1 = dflags0
-    let !pres = runParser dflags1 file buf Parser.parseModule
+    let !pres = runParser dflags1 file buf Parser.parseModule -- cost of this bang is high
     --printParseRes dflags1 file pres
     return $ presToBool pres
 
@@ -93,11 +94,10 @@ myReadFile file= do
   hGetContents hd
 
 printParseRes ::
-  Outputable a =>
+  (Data a) =>
   DynFlags -> String -> ParseResult a -> IO ()
-printParseRes _dflags _ (POk _state _res) = --print $
-  --showSDoc dflags $ ppr res
-  return ()
+printParseRes dflags _ (POk _state res) = putStrLn $
+  showSDoc dflags $ showAstData NoBlankSrcSpan res
 printParseRes dflags file (PFailed _ _ msg) = do
   print "*************************************************"
   print file
