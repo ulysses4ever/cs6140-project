@@ -29,8 +29,6 @@ import System.FilePath.Find as Find
 
 import Control.Monad.Parallel (mapM)
 
-import Process
-
 main :: IO ()
 main = do
     args <- getArgs
@@ -51,7 +49,7 @@ parse dflags0 file = do
     dflags1 <- augmentDflags dflags0 buf file
     --let dflags1 = dflags0
     let !pres = runParser dflags1 file buf Parser.parseModule -- cost of this bang is high
-    printParseRes dflags1 file pres
+    --printParseRes dflags1 file pres
     return $ presToBool pres
 
 runParser :: DynFlags -> String -> StringBuffer -> P a -> ParseResult a
@@ -96,14 +94,10 @@ myReadFile file= do
   hGetContents hd
 
 printParseRes ::
---  (Data a) =>
---  DynFlags -> String -> ParseResult a -> IO ()
-  DynFlags -> String -> ParseResult (Located (HsModule GhcPs)) -> IO ()
-printParseRes dflags _ (POk _state (L _ res)) = do
-    print $ show $ foo (hsmodDecls res)
-  --print "================================================="
-  --putStrLn $
-  --  showSDoc dflags $ showAstData NoBlankSrcSpan res
+  (Data a) =>
+  DynFlags -> String -> ParseResult a -> IO ()
+printParseRes dflags _ (POk _state res) = putStrLn $
+  showSDoc dflags $ showAstData NoBlankSrcSpan res
 printParseRes dflags file (PFailed _ _ msg) = do
   print "*************************************************"
   print file
