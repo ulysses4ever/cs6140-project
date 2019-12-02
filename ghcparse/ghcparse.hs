@@ -100,8 +100,8 @@ printParseRes ::
 --  DynFlags -> String -> ParseResult a -> IO ()
   DynFlags -> String -> ParseResult (Located (HsModule GhcPs)) -> IO ()
 printParseRes dflags _ (POk _state (L _ res)) = do
-    print $ show $ foo (hsmodDecls res)
-  --print "================================================="
+  putStrLn $ show $ foo (hsmodDecls res)
+  putStrLn "================================================="
   --putStrLn $
   --  showSDoc dflags $ showAstData NoBlankSrcSpan res
 printParseRes dflags file (PFailed _ _ msg) = do

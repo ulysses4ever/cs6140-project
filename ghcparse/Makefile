@@ -1,7 +1,7 @@
 # In case of profiling is needed: add -prof -fprof-auto to the ghc call
 # but first make sure you have profiling versions of the library deps installed
-ghcparse: ghcparse.hs process.hs
-	ghc -O2 -rtsopts -threaded -package ghc -package ghc-paths -package filemanip -package monad-parallel ghcparse.hs process.hs
+ghcparse: ghcparse.hs process.hs stringify.hs
+	ghc -O2 -rtsopts -threaded -package ghc -package ghc-paths -package filemanip -package bytestring -package monad-parallel process.hs stringify.hs ghcparse.hs
 
 ghcparse-prof: ghcparse.hs
 	ghc -O2 -rtsopts -threaded -prof -fprof-auto -package ghc -package ghc-paths -package filemanip -package monad-parallel ghcparse.hs
