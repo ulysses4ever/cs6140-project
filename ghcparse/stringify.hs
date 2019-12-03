@@ -1,4 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE DeriveGeneric #-}
+
 
 module Stringify (toTreeMatches, Tree(..)) where
 
@@ -7,6 +9,7 @@ module Stringify (toTreeMatches, Tree(..)) where
 -- =====================================================
 
 -- GHC
+import BasicTypes
 import HsExtension
 import HsExpr
 import HsSyn
@@ -18,6 +21,9 @@ import Data.Data hiding (Fixity)
 import OccName hiding (occName)
 import Module
 
+-- Pretty printing
+import Text.PrettyPrint.GenericPretty
+
 --import qualified Data.ByteString as B
 
 -- =====================================================
@@ -25,7 +31,12 @@ import Module
 -- =====================================================
 
 -- A string tree to represent an AST
-data Tree = Leaf String | Node String [Tree] deriving (Show)
+data Tree =
+  Leaf String |
+  Node String [Tree]
+  deriving (Show, Generic)
+
+instance Out Tree
 
 toTreeMatches :: [Match GhcPs (LHsExpr GhcPs)] -> Tree
 toTreeMatches mts = Node "FunDefMatch" $ map toTreeMatch mts

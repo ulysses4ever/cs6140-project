@@ -13,8 +13,6 @@ import Data.Maybe
 -- Project
 import Stringify
 
-
-
 -- Function declaration
 data FunDecl = 
     FunDecl {
@@ -22,10 +20,8 @@ data FunDecl =
       fd_matches :: [Match GhcPs (LHsExpr GhcPs)]
     } 
 
-
-
-foo :: [LHsDecl GhcPs] -> Tree
-foo ds = let fds = getFunDecls ds in
+hsDeclsToTree :: [LHsDecl GhcPs] -> Tree
+hsDeclsToTree ds = let fds = getFunDecls ds in
     case fds of
         [] -> Leaf "-"
         (FunDecl _ mts) : _ -> toTreeMatches mts

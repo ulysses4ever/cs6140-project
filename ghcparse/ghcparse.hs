@@ -29,7 +29,16 @@ import System.FilePath.Find as Find
 
 import Control.Monad.Parallel (mapM)
 
+-- Pretty printing
+import Text.PrettyPrint.GenericPretty
+
 import Process
+import Stringify
+
+myPrint :: Tree -> IO ()
+myPrint =
+  ppLen 80
+  -- putStrLn . show
 
 main :: IO ()
 main = do
@@ -100,7 +109,8 @@ printParseRes ::
 --  DynFlags -> String -> ParseResult a -> IO ()
   DynFlags -> String -> ParseResult (Located (HsModule GhcPs)) -> IO ()
 printParseRes dflags _ (POk _state (L _ res)) = do
-  putStrLn $ show $ foo (hsmodDecls res)
+  myPrint $
+    hsDeclsToTree (hsmodDecls res)
   putStrLn "================================================="
   --putStrLn $
   --  showSDoc dflags $ showAstData NoBlankSrcSpan res
