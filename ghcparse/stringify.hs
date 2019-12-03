@@ -10,12 +10,13 @@ module Stringify (toTreeMatches, Tree(..)) where
 import HsExtension
 import HsExpr
 import HsSyn
-
+import RdrName
 import SrcLoc
 
 -- Datatype programming
 import Data.Data hiding (Fixity)
 import OccName hiding (occName)
+import Module
 
 --import qualified Data.ByteString as B
 
@@ -32,26 +33,63 @@ toTreeMatches mts = Node "FunDefMatch" $ map toTreeMatch mts
 toTreeMatch :: Match GhcPs (LHsExpr GhcPs) -> Tree
 toTreeMatch mt = astToTree mt
 
+-- main definition
+-- -----------------------------------------------------
 
 astToTree :: Data a => a -> Tree
 astToTree = 
   generic 
     `extQ` string --`extQ` bytestring
     `ext1Q` list
-    `extQ` occName
+    `extQ` match `extQ` hsMatchContext
+    `extQ` rdrName `extQ` occName
     `ext2Q` located
 
 generic :: Data a => a -> Tree
-generic t = Node (showConstr (toConstr t))
-                 (filter bad (gmapQ astToTree t))
+generic t = 
+  let 
+    children = filter good (gmapQ astToTree t)
+    name     = showConstr (toConstr t)
+  in
+    case children of
+      [] -> Leaf name
+      _  -> Node name children
   where 
-    bad (Node "NoExt" _) = False
-    bad _ = True
+    good (Leaf "NoExt")   = False
+    good (Node "NoExt" _) = False
+    good _ = True
 
+-- interesting AST cases
+-- -----------------------------------------------------
 
-                
+hsOverLit :: HsOverLit GhcPs -> Tree
+hsOverLit (OverLit _ val _) = Leaf $ overLitValToStr val
+
+overLitValToStr :: OverLitVal -> String
+overLitValToStr (HsIntegral (IL txt _ _)) = sourceTextToStr txt
+overLitValToStr (HsFractional (FL txt _ _)) = sourceTextToStr txt
+overLitValToStr (HsIsString txt fstr) = sourceTextToStr txt
+
+sourceTextToStr :: SourceText -> String
+sourceTextToStr (SourceText str) = str
+sourceTextToStr NoSourceText = "NoSourceText"
+
+match :: Match GhcPs (LHsExpr GhcPs) -> Tree
+match (Match _ ctx pats rhs) = Node "Match" $
+    [ hsMatchContext ctx
+    , Node "Pats" (map astToTree pats) 
+    , astToTree rhs]
+
+hsMatchContext :: HsMatchContext (NameOrRdrName (IdP GhcPs)) -> Tree
+hsMatchContext (FunRhs (L _ id) _ _) = 
+  Leaf $ "FunRhs$" ++ (rdrNameToStr id)
+hsMatchContext mc = Leaf (showConstr (toConstr mc))
+
+-- simple AST cases
+-- -----------------------------------------------------
+
 list :: Data a => [a] -> Tree
-list xs = Node "&&&list" $ map astToTree xs
+list xs = Node "List" $ map astToTree xs
 
 string :: String -> Tree
 string s = Leaf $ "%%%" ++ s
@@ -59,7 +97,15 @@ string s = Leaf $ "%%%" ++ s
 --bytestring :: B.ByteString -> Tree
 --bytestring s = Leaf $ "%%%" ++ show s
 
+occName :: OccName -> Tree
 occName n  =  Leaf $ "%%%" ++ (OccName.occNameString n)
+
+rdrName :: RdrName -> Tree
+rdrName = Leaf . rdrNameToStr
+
+rdrNameToStr :: RdrName -> String
+rdrNameToStr (Unqual n) = "%NAME%" ++ (OccName.occNameString n)
+rdrNameToStr (Qual m n) = "%NAME%" ++ (moduleNameString m) ++ "." ++ (OccName.occNameString n)
 
 
 located :: (Data b) => GenLocated loc b -> Tree
