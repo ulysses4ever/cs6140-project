@@ -15,6 +15,7 @@ import HsExpr
 import HsSyn
 import RdrName
 import SrcLoc
+import Bag
 
 -- Datatype programming
 import Data.Data hiding (Fixity)
@@ -54,10 +55,12 @@ toTreeMatch mt = astToTree mt
 astToTree :: Data a => a -> Tree
 astToTree = 
   generic 
-    `extQ` string --`extQ` bytestring
     `ext1Q` list
-    `extQ` pat
-    `extQ` match `extQ` hsMatchContext 
+    `extQ` string --`extQ` bytestring
+    `extQ` hsValBindsLR 
+    `extQ` gRHSs `extQ` gRHS
+    `extQ` pat `extQ` lit
+    `extQ` matchGroup `extQ` match `extQ` hsMatchContext 
     `extQ` hsOverLit
     `extQ` rdrName `extQ` occName
     `ext2Q` located
@@ -74,11 +77,48 @@ generic t =
   where 
     good (Leaf "NoExt")   = False
     good (Node "NoExt" _) = False
+    good (Node "List" []) = False
+    good (Leaf "EmptyLocalBinds") = False
+    good (Leaf "WpHole") = False
+    good (Node "SyntaxExpr" _) = False
     good _ = True
 
 -- -----------------------------------------------------
 -- interesting AST cases
 -- -----------------------------------------------------
+
+hsValBindsLR :: HsValBindsLR GhcPs GhcPs -> Tree
+hsValBindsLR (ValBinds _X bnds _LSig) = 
+  Node "ValBinds" $ map astToTree bndsList
+  where 
+    bndsList = bagToList bnds
+hsValBindsLR _ = error "panic: HsValBindsLR unknown constructor"
+
+
+gRHS :: GRHS GhcPs (LHsExpr GhcPs) -> Tree
+gRHS (GRHS _X gs bd) = Node "GRHSs" chs
+  where 
+    bdTree = astToTree bd
+    chs = case gs of
+            []   -> [bdTree]
+            gs'' -> [Node "GuardLStmtList" $ map astToTree gs'', bdTree] 
+gRHS _ = error "panic: GRHS unknown constructor"
+
+gRHSs :: GRHSs GhcPs (LHsExpr GhcPs) -> Tree
+gRHSs (GRHSs _ rhs binds) = Node "GRHSs" $ rhs' ++ binds' 
+  where 
+    binds' = case unLoc binds of
+      EmptyLocalBinds _ -> []
+      HsValBinds _X vbs -> [hsValBindsLR vbs]
+      _ -> [astToTree binds]
+    rhs' = case rhs of
+            []   -> []
+            gs'' -> [Node "GRHSList" $ map astToTree gs'']
+gRHSs _ = error "panic: GRHSs unknown constructor"
+
+lit :: HsLit GhcPs -> Tree
+lit (HsString st _) = Node "HsString" [Leaf (sourceTextToStr st)]
+lit l = generic l
 
 pat :: Pat GhcPs -> Tree
 pat (NPat _X (L _ hsLit) neg _eq) =
@@ -118,16 +158,24 @@ sourceTextToStr :: SourceText -> String
 sourceTextToStr (SourceText str) = str
 sourceTextToStr NoSourceText = "NoSourceText"
 
+matchGroup :: MatchGroup GhcPs (LHsExpr GhcPs) -> Tree
+matchGroup (MG _X matches _orig) = Node "MatchGroup" $ map astToTree (unLoc matches)
+matchGroup _ = error "panic: MatchGroup unknown constructor"
+
 match :: Match GhcPs (LHsExpr GhcPs) -> Tree
 match (Match _ ctx pats rhs) = Node "Match" $
-    [ hsMatchContext ctx
-    , Node "Pats" (map astToTree pats) 
-    , astToTree rhs]
-match _ = error "panic: unknown constructor of Match"
+    hsMatchContext ctx
+    : pats' 
+    ++ [astToTree rhs]
+  where
+    pats' = case pats of
+      [] -> []
+      _ -> [Node "Pats" (map astToTree pats)]
+match _ = error "panic: Match unknown constructor"
 
 hsMatchContext :: HsMatchContext (NameOrRdrName (IdP GhcPs)) -> Tree
 hsMatchContext (FunRhs (L _ name) _ _) = 
-  Leaf $ "FunRhs$" ++ (rdrNameToStr name)
+  Node "FunRhs" [Leaf (rdrNameToStr name)]
 hsMatchContext mc = Leaf (showConstr (toConstr mc))
 
 -- -----------------------------------------------------

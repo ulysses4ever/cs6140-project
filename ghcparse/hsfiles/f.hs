@@ -1,10 +1,14 @@
 module Foo where
 
---g = -1
+g = bar
+  where 
+	bar = 5
+	bar :: Int
 
 f 0 = 1
 --f (-1) = 1
-f n = n * f (n - 1)
+f n | n > 0 = n * f (n - 1)
+f x = x * f (x - 1) >>= 1
 
 reverse1 [] = []
 reverse1 (x:xs) = reverse1 xs ++ [x]
