@@ -47,6 +47,7 @@ toTreeMatches mts = Node "FunDefMatch" $ map toTreeMatch mts
 toTreeMatch :: Match GhcPs (LHsExpr GhcPs) -> Tree
 toTreeMatch mt = astToTree mt
 
+-- -----------------------------------------------------
 -- main definition
 -- -----------------------------------------------------
 
@@ -75,23 +76,27 @@ generic t =
     good (Node "NoExt" _) = False
     good _ = True
 
+-- -----------------------------------------------------
 -- interesting AST cases
 -- -----------------------------------------------------
 
 pat :: Pat GhcPs -> Tree
-pat (NPat _X (L _ (OverLit _ val _)) neg _eq) =
-  Leaf $ (if isJust neg then "-" else "") ++ overLitValToStr val
+pat (NPat _X (L _ hsLit) neg _eq) =
+  case hsLit of
+    OverLit _ val _ -> 
+      Leaf $ (maybe "" (const "-") neg) ++ overLitValToStr val
+    _ -> error "panic"
 pat (NPlusKPat {}) = Leaf "NPlusKPat"
 pat (WildPat _) = Leaf "XWildPat"
 pat (VarPat _ p) = Node "VarPat" [astToTree p]
 pat (LazyPat _ p) = Node "LazyPat" [astToTree p]
-pat (AsPat _ id p) = Node "AsPat" [astToTree id, astToTree p]
+pat (AsPat _ name p) = Node "AsPat" [astToTree name, astToTree p]
 pat (ParPat _ p) = Node "ParPat" [astToTree p]
 pat (BangPat _ p) = Node "BangPat" [astToTree p]
 pat (ListPat _ p) = Node "ListPat" (map astToTree p)
 pat (TuplePat _ p _b) = Node "TuplePat" (map astToTree p) 
 pat (SumPat _ p t _) = Node "SumPat" [astToTree p, astToTree t]
-pat (ConPatIn id p) = Node "ConPatIn" [astToTree id, astToTree p]
+pat (ConPatIn name p) = Node "ConPatIn" [astToTree name, astToTree p]
 pat pt@(ConPatOut {}) = Node "ConPatOut" (gmapQ astToTree pt)
 pat (ViewPat _ l p) = Node "ViewPat" [astToTree l, astToTree p]
 pat (SplicePat _ p) = Node "SplicePat" [astToTree p]
@@ -102,11 +107,12 @@ pat (XPat _) = Leaf "XPat"
 
 hsOverLit :: HsOverLit GhcPs -> Tree
 hsOverLit (OverLit _ val _) = Leaf $ overLitValToStr val
+hsOverLit _ = error "panic: HsOverLit unknown constructor"
 
 overLitValToStr :: OverLitVal -> String
 overLitValToStr (HsIntegral (IL txt _ _)) = sourceTextToStr txt
 overLitValToStr (HsFractional (FL txt _ _)) = sourceTextToStr txt
-overLitValToStr (HsIsString txt fstr) = sourceTextToStr txt
+overLitValToStr (HsIsString txt _) = sourceTextToStr txt
 
 sourceTextToStr :: SourceText -> String
 sourceTextToStr (SourceText str) = str
@@ -117,12 +123,14 @@ match (Match _ ctx pats rhs) = Node "Match" $
     [ hsMatchContext ctx
     , Node "Pats" (map astToTree pats) 
     , astToTree rhs]
+match _ = error "panic: unknown constructor of Match"
 
 hsMatchContext :: HsMatchContext (NameOrRdrName (IdP GhcPs)) -> Tree
-hsMatchContext (FunRhs (L _ id) _ _) = 
-  Leaf $ "FunRhs$" ++ (rdrNameToStr id)
+hsMatchContext (FunRhs (L _ name) _ _) = 
+  Leaf $ "FunRhs$" ++ (rdrNameToStr name)
 hsMatchContext mc = Leaf (showConstr (toConstr mc))
 
+-- -----------------------------------------------------
 -- simple AST cases
 -- -----------------------------------------------------
 

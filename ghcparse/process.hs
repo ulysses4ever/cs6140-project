@@ -1,5 +1,7 @@
 module Process where
 
+import Prelude hiding (id)
+
 -- GHC
 import HsDecls
 import HsExtension
@@ -24,7 +26,8 @@ hsDeclsToTree :: [LHsDecl GhcPs] -> [Tree]
 hsDeclsToTree ds = map funDeclToTree (getFunDecls ds)
 
 funDeclToTree :: FunDecl -> Tree
-funDeclToTree (FunDecl id mts) = Node (rdrNameToStr id) [toTreeMatches mts]
+funDeclToTree (FunDecl id mts) =
+  Node (rdrNameToStr id) [toTreeMatches mts]
 
 getFunDecls :: [LHsDecl GhcPs] -> [FunDecl]
 getFunDecls = catMaybes . map getFunDecl
@@ -34,7 +37,7 @@ getFunDecl :: LHsDecl GhcPs -> Maybe FunDecl
 getFunDecl (L _ (ValD _ (
       FunBind 
         _ 
-        (L _ id) 
+        (L _ id)
         (MG _ (L _ alts) _) 
         _
         _

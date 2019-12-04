@@ -98,21 +98,16 @@ findHsSources fp = find isVisible (isHsFile &&? isVisible) fp
       isHsFile = Find.extension ==? ".hs"
       isVisible = fileName /~? ".?*"
 
-myReadFile :: String -> IO String
-myReadFile file= do
-  hd <- openFile file ReadMode
-  hSetBinaryMode hd True
-  hGetContents hd
-
 printParseRes ::
---  (Data a) =>
---  DynFlags -> String -> ParseResult a -> IO ()
-  DynFlags -> String -> ParseResult (Located (HsModule GhcPs)) -> IO ()
-printParseRes dflags _ (POk _state (L _ res)) = do
+  DynFlags ->
+  String -> -- file name
+  ParseResult (Located (HsModule GhcPs)) ->
+  IO ()
+printParseRes _dflags _ (POk _state (L _ res)) = do
   myPrint $
     hsDeclsToTree (hsmodDecls res)
   putStrLn "================================================="
-  --putStrLn $
+  --putStrLn $  -- remove `_` from `_dflags` in arg-list
   --  showSDoc dflags $ showAstData NoBlankSrcSpan res
 printParseRes dflags file (PFailed _ _ msg) = do
   print "*************************************************"
