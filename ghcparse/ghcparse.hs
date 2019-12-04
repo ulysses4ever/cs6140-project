@@ -35,7 +35,7 @@ import Text.PrettyPrint.GenericPretty
 import Process
 import Stringify
 
-myPrint :: Tree -> IO ()
+myPrint :: [Tree] -> IO ()
 myPrint =
   ppLen 80
   -- putStrLn . show

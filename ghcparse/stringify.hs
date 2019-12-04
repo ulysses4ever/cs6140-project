@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 
-module Stringify (toTreeMatches, Tree(..)) where
+module Stringify (toTreeMatches, Tree(..), rdrNameToStr) where
 
 -- =====================================================
 -- imports
@@ -23,6 +23,9 @@ import Module
 
 -- Pretty printing
 import Text.PrettyPrint.GenericPretty
+
+-- Standard
+import Data.Maybe
 
 --import qualified Data.ByteString as B
 
@@ -52,7 +55,9 @@ astToTree =
   generic 
     `extQ` string --`extQ` bytestring
     `ext1Q` list
-    `extQ` match `extQ` hsMatchContext
+    `extQ` pat
+    `extQ` match `extQ` hsMatchContext 
+    `extQ` hsOverLit
     `extQ` rdrName `extQ` occName
     `ext2Q` located
 
@@ -72,6 +77,28 @@ generic t =
 
 -- interesting AST cases
 -- -----------------------------------------------------
+
+pat :: Pat GhcPs -> Tree
+pat (NPat _X (L _ (OverLit _ val _)) neg _eq) =
+  Leaf $ (if isJust neg then "-" else "") ++ overLitValToStr val
+pat (NPlusKPat {}) = Leaf "NPlusKPat"
+pat (WildPat _) = Leaf "XWildPat"
+pat (VarPat _ p) = Node "VarPat" [astToTree p]
+pat (LazyPat _ p) = Node "LazyPat" [astToTree p]
+pat (AsPat _ id p) = Node "AsPat" [astToTree id, astToTree p]
+pat (ParPat _ p) = Node "ParPat" [astToTree p]
+pat (BangPat _ p) = Node "BangPat" [astToTree p]
+pat (ListPat _ p) = Node "ListPat" (map astToTree p)
+pat (TuplePat _ p _b) = Node "TuplePat" (map astToTree p) 
+pat (SumPat _ p t _) = Node "SumPat" [astToTree p, astToTree t]
+pat (ConPatIn id p) = Node "ConPatIn" [astToTree id, astToTree p]
+pat pt@(ConPatOut {}) = Node "ConPatOut" (gmapQ astToTree pt)
+pat (ViewPat _ l p) = Node "ViewPat" [astToTree l, astToTree p]
+pat (SplicePat _ p) = Node "SplicePat" [astToTree p]
+pat (LitPat _ p) = Node "LitPat" [astToTree p]
+pat (SigPat _ p) = Node "SigPat" [astToTree p]
+pat (CoPat _ w p t) = Node "CoPat" [astToTree w, astToTree p, astToTree t]
+pat (XPat _) = Leaf "XPat" 
 
 hsOverLit :: HsOverLit GhcPs -> Tree
 hsOverLit (OverLit _ val _) = Leaf $ overLitValToStr val
@@ -115,8 +142,7 @@ rdrName :: RdrName -> Tree
 rdrName = Leaf . rdrNameToStr
 
 rdrNameToStr :: RdrName -> String
-rdrNameToStr (Unqual n) = "%NAME%" ++ (OccName.occNameString n)
-rdrNameToStr (Qual m n) = "%NAME%" ++ (moduleNameString m) ++ "." ++ (OccName.occNameString n)
+rdrNameToStr n = (OccName.occNameString (rdrNameOcc n))
 
 
 located :: (Data b) => GenLocated loc b -> Tree

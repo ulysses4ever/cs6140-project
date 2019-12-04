@@ -20,12 +20,11 @@ data FunDecl =
       fd_matches :: [Match GhcPs (LHsExpr GhcPs)]
     } 
 
-hsDeclsToTree :: [LHsDecl GhcPs] -> Tree
-hsDeclsToTree ds = let fds = getFunDecls ds in
-    case fds of
-        [] -> Leaf "-"
-        (FunDecl _ mts) : _ -> toTreeMatches mts
+hsDeclsToTree :: [LHsDecl GhcPs] -> [Tree]
+hsDeclsToTree ds = map funDeclToTree (getFunDecls ds)
 
+funDeclToTree :: FunDecl -> Tree
+funDeclToTree (FunDecl id mts) = Node (rdrNameToStr id) [toTreeMatches mts]
 
 getFunDecls :: [LHsDecl GhcPs] -> [FunDecl]
 getFunDecls = catMaybes . map getFunDecl
