@@ -39,19 +39,19 @@ hsDeclsToTree :: [LHsDecl GhcPs] -> [Tree]
 hsDeclsToTree ds = map funDeclToTree (getFunDecls ds)
 
 processHsDecls :: Int -> Int -> [LHsDecl GhcPs] -> [String]
-processHsDecls min max ds = pathStrs
+processHsDecls mn mx ds = pathStrs
   where
     fds = getFunDecls ds
-    pathStrs = map (processFunDecl min max) fds
+    pathStrs = map (processFunDecl mn mx) fds
 
 processFunDecl :: Int -> Int -> FunDecl -> String
-processFunDecl min max fd@(FunDecl id _) = 
+processFunDecl mn mx fd@(FunDecl id _) = 
   ident ++ " " ++ pathsStr
   where
     tokens = unIdentifier $ fromAny (rdrNameToStr id)
     ident  = map toLower $ intercalate "|" tokens
     tree   = funDeclToTree fd
-    paths  = genPathsInRange min max tree
+    paths  = genPathsInRange mn mx tree
     pathsStr = intercalate " " $ map showPath paths
 
 -- -----------------------------------------------------
@@ -69,18 +69,18 @@ genPaths :: Tree -> [C2VPath]
 genPaths t = snd $ genPaths' 0 t
 
 genPathsInRange :: Int -> Int -> Tree -> [C2VPath]
-genPathsInRange min max t = filter good $ genPaths t
+genPathsInRange mn mx t = filter good $ genPaths t
   where
-    good (_,_,_,len) = (min <= len) && (len <= max)
+    good (_,_,_,len) = (mn <= len) && (len <= mx)
 
 
 showPath :: C2VPath -> String
 showPath (l1, r, l2, _n) = l1 ++ "," ++ r ++ "," ++ l2
 
 genPaths' :: Int -> Tree -> C2VInfo
-genPaths' len t@(Leaf s)    = ([(s, len)], [])
-genPaths' len t@(Node s []) = ([(s, len)], [])
-genPaths' len t@(Node s ts) = (newLeafs, paths ++ newPaths)
+genPaths' len (Leaf s)    = ([(s, len)], [])
+genPaths' len (Node s []) = ([(s, len)], [])
+genPaths' len (Node s ts) = (newLeafs, paths ++ newPaths)
   where
     -- leafs and paths for subtrees
     infos :: [C2VInfo]
@@ -108,24 +108,30 @@ triLoop (x : xs) f = [f x y | y <- xs]
 biLoop :: [a] -> [b] -> (a -> b -> c) -> [c]
 biLoop xs ys f = [f x y | x <- xs, y <- ys]
 
---triLoop xs ys f = concatMap (\x -> zipWith f (repeat x) ys) xs
-{-triLoop [] _ys _f     = []
-triLoop _xs [] _f     = []
-triLoop (x : xs) ys f = map (\y -> f x y) ys ++
-    triLoop xs ys f
+--biLoop xs ys f = concatMap (\x -> zipWith f (repeat x) ys) xs
+{-biLoop [] _ys _f     = []
+biLoop _xs [] _f     = []
+biLoop (x : xs) ys f = map (\y -> f x y) ys ++
+    biLoop xs ys f
 -}
 
+ex1 :: Tree
 ex1 = Node "X" [Leaf "a", Node "Y" [Leaf "b", Leaf "c"], 
                 Node "Z" [Leaf "p", Node "W" [Leaf "q", Leaf "s"]]]
 
+ex1' :: Tree
 ex1' = Node "W" [Leaf "q", Leaf "s"]
+ex2' :: Tree
 ex2' = Node "Z" [Leaf "p", ex1']
 
 {-
+ex2 :: Tree
 ex2 = Leaf "a"
 
+ex3 :: Tree
 ex3 = Node "X" []
 
+ex4 :: Tree
 ex4 = Node "X" [Node "Y" []]
 
 type Path = [Tree]

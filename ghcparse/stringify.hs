@@ -117,7 +117,7 @@ gRHSs (GRHSs _ rhs binds) = Node "GRHSs" $ rhs' ++ binds'
 gRHSs _ = error "panic: GRHSs unknown constructor"
 
 lit :: HsLit GhcPs -> Tree
-lit (HsString st _) = Leaf "HsString" --Node "HsString" [Leaf (sourceTextToStr st)]
+lit (HsString _ _) = Leaf "HsString" --Node "HsString" [Leaf (sourceTextToStr st)]
 lit l = generic l
 
 pat :: Pat GhcPs -> Tree
