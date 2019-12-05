@@ -7,7 +7,7 @@ module Process where
 -- imports
 -- =====================================================
 
-import Prelude hiding (id)
+import Prelude --hiding (id)
 import Text.Casing
 
 -- GHC
@@ -61,9 +61,82 @@ processFunDecl mn mx fd@(FunDecl id _) =
 
 -- leaf-string and length of the path to the leaf
 type LeafInfo = (String, Int)
-
+-- one Code2Vec path with its length
 type C2VPath = (String, String, String, Int)
 
+showPath :: C2VPath -> String
+showPath (l1, r, l2, _n) = l1 ++ "," ++ r ++ "," ++ l2
+
+type DList a = [a] -> [a]
+
+type C2VInfoD = (DList LeafInfo, DList C2VPath)
+
+genPaths :: Tree -> [C2VPath]
+genPaths t = forceD $ snd $ genPaths' 0 t
+
+genPathsInRange :: Int -> Int -> Tree -> [C2VPath]
+genPathsInRange mn mx t = filter good $ genPaths t
+  where
+    good (_,_,_,len) = (mn <= len) && (len <= mx)
+
+genPaths' :: Int -> Tree -> C2VInfoD
+genPaths' len (Leaf s)    = (((s, len):), id)
+genPaths' len (Node s []) = (((s, len):), id)
+genPaths' len (Node s ts) = (newLeafs, paths . newPaths)
+  where
+    -- leafs and paths for subtrees
+    infos :: [C2VInfoD]
+    infos = map (\t -> genPaths' (len+1) t) ts
+
+    leafInfosD :: [DList LeafInfo]
+    leafInfosD = map fst infos
+
+    leafInfos :: [[LeafInfo]]
+    leafInfos = map forceD leafInfosD
+
+    paths :: DList C2VPath
+    paths = concatCD $ map snd infos
+
+    makePath :: LeafInfo -> LeafInfo -> C2VPath
+    makePath (s1, n1) (s2, n2) = (s1, s, s2, n1+n2-len-len)
+
+    makePaths :: [LeafInfo] -> [LeafInfo] -> DList C2VPath
+    makePaths ls1 ls2 = fromList $ biLoop ls1 ls2 makePath
+    
+    newPaths :: DList C2VPath
+    newPaths =  (triLoop leafInfos makePaths :: DList C2VPath)
+    
+    newLeafs :: DList LeafInfo
+    newLeafs = concatCD leafInfosD
+
+triLoop :: [a] -> (a -> a -> DList b) -> DList b
+triLoop []  _f = id
+triLoop (x : xs) f = (concatCD [f x y | y <- xs]) . (triLoop xs f)
+
+fromList :: [a] -> DList a
+fromList xs = (xs ++)
+
+biLoop :: [a] -> [b] -> (a -> b -> c) -> [c]
+biLoop xs ys f = [f x y | x <- xs, y <- ys]
+
+forceD :: DList a -> [a]
+forceD xs = xs []
+
+concatCD :: [DList a] -> DList a
+concatCD xs = foldl (\acc -> \info -> acc . info) id xs
+
+--mapD :: (a -> b) -> DList a -> DList b
+--mapD f = foldr ((x:) . f) id
+
+--concatDC :: DList [a] -> DList a
+--concatDC 
+
+--concatDD :: DList (DList a) -> DList a
+
+--concat :: List l => l [a] -> l a
+--concat = concatDD . liftM fromList
+
+{-
 type C2VInfo = ([LeafInfo], [C2VPath])
 
 genPaths :: Tree -> [C2VPath]
@@ -99,8 +172,6 @@ genPaths' len (Node s ts) = (newLeafs, paths ++ newPaths)
     newLeafs :: [LeafInfo]
     newLeafs = concat leafInfos
 
-    -- for ( :: C2VInfo in infos
-
 triLoop :: [a] -> (a -> a -> b) -> [b]
 triLoop []  _f = []
 triLoop (x : xs) f = [f x y | y <- xs] 
@@ -108,9 +179,11 @@ triLoop (x : xs) f = [f x y | y <- xs]
 
 biLoop :: [a] -> [b] -> (a -> b -> c) -> [c]
 biLoop xs ys f = [f x y | x <- xs, y <- ys]
+-}
 
 --biLoop xs ys f = concatMap (\x -> zipWith f (repeat x) ys) xs
-{-biLoop [] _ys _f     = []
+{-
+biLoop [] _ys _f     = []
 biLoop _xs [] _f     = []
 biLoop (x : xs) ys f = map (\y -> f x y) ys ++
     biLoop xs ys f
