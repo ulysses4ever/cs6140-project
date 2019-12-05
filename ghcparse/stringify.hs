@@ -38,7 +38,7 @@ import Data.Maybe
 data Tree =
   Leaf String |
   Node String [Tree]
-  deriving (Show, Generic)
+  deriving (Show, Generic, Eq)
 
 instance Out Tree
 
@@ -117,7 +117,7 @@ gRHSs (GRHSs _ rhs binds) = Node "GRHSs" $ rhs' ++ binds'
 gRHSs _ = error "panic: GRHSs unknown constructor"
 
 lit :: HsLit GhcPs -> Tree
-lit (HsString st _) = Node "HsString" [Leaf (sourceTextToStr st)]
+lit (HsString st _) = Leaf "HsString" --Node "HsString" [Leaf (sourceTextToStr st)]
 lit l = generic l
 
 pat :: Pat GhcPs -> Tree
