@@ -1,4 +1,5 @@
 {-#LANGUAGE TupleSections #-}
+{-#LANGUAGE BangPatterns #-}
 
 module Process where
 
@@ -52,7 +53,7 @@ processFunDecl mn mx fd@(FunDecl id _) =
     ident  = map toLower $ intercalate "|" tokens
     tree   = funDeclToTree fd
     paths  = genPathsInRange mn mx tree
-    pathsStr = intercalate " " $ map showPath paths
+    !pathsStr = intercalate " " $ map showPath paths
 
 -- -----------------------------------------------------
 -- process Tree

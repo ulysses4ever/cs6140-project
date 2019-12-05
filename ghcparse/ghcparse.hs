@@ -267,7 +267,7 @@ printParseRes ::
 printParseRes _dflags fname (POk _state (L _ res)) = do
   --myPrint $
     --hsDeclsToTree (hsmodDecls res)
-  writeFile (fname ++ ".paths") $
+  writeFile (fname ++ ".paths") $!
     intercalate "\n" $ processHsDecls 0 10 (hsmodDecls res)
   -- putStrLn "================================================="
   --putStrLn $  -- remove `_` from `_dflags` in arg-list
