@@ -10,11 +10,17 @@ ghcparse: ghcparse.hs process.hs stringify.hs
 		-package GenericPretty \
 		process.hs stringify.hs ghcparse.hs
 
-ghcparse-prof: ghcparse.hs
-	ghc -O2 -rtsopts -threaded -prof -fprof-auto -package ghc -package ghc-paths -package filemanip -package monad-parallel ghcparse.hs
+ghcparse-prof: ghcparse.hs process.hs stringify.hs
+	ghc -O2 -rtsopts -threaded -prof -fprof-auto \
+		-package ghc \
+		-package ghc-paths \
+		-package filemanip \
+		-package bytestring \
+		-package monad-parallel \
+		process.hs stringify.hs ghcparse.hs
 
 deps:
-	cabal update
+	cabal v2-update
 	cabal v2-install --enable-library-profiling ghc-paths --lib
 	cabal v2-install --enable-library-profiling monad-parallel --lib
 	cabal v2-install --enable-library-profiling filemanip --lib
