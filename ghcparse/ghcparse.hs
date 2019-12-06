@@ -72,8 +72,8 @@ main = do
     args <- getArgs
     hsFiles <- findHsSources (head args)
     !dflags <- initDflags
-    !res <- Control.Monad.Parallel.mapM (parse dflags) hsFiles
-    -- !res <- Prelude.mapM (parse dflags) hsFiles
+    -- !res <- Control.Monad.Parallel.mapM (parse dflags) hsFiles
+    !res <- Prelude.mapM (parse dflags) hsFiles
     let (succR, _) = partition (== True) res
         totalFiles   = length res
         rate = fromIntegral (length succR) / 
@@ -268,7 +268,7 @@ printParseRes _dflags fname (POk _state (L _ res)) = do
   --myPrint $
     --hsDeclsToTree (hsmodDecls res)
   writeFile (fname ++ ".paths") $!
-    intercalate "\n" $ processHsDecls 0 10 (hsmodDecls res)
+    intercalate "\n" $ processHsDecls 0 10 200 (hsmodDecls res)
   -- putStrLn "================================================="
   --putStrLn $  -- remove `_` from `_dflags` in arg-list
   --  showSDoc dflags $ showAstData NoBlankSrcSpan res

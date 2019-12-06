@@ -74,8 +74,8 @@ type C2VInfoD = (DList LeafInfo, DList C2VPath)
 genPaths :: Tree -> [C2VPath]
 genPaths t = forceD $ snd $ genPaths' 0 t
 
-genPathsInRange :: Int -> Int -> Tree -> [C2VPath]
-genPathsInRange mn mx t = filter good $ genPaths t
+genPathsInRange :: Int -> Int -> Int -> Tree -> [C2VPath]
+genPathsInRange mn mx num t = take num $ filter good $ genPaths t
   where
     good (_,_,_,len) = (mn <= len) && (len <= mx)
 

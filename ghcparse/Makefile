@@ -11,7 +11,7 @@ ghcparse: ghcparse.hs process.hs stringify.hs
 		process.hs stringify.hs ghcparse.hs
 
 ghcparse-prof: ghcparse.hs process.hs stringify.hs
-	ghc -O2 -rtsopts -threaded -prof -fprof-auto \
+	ghc -O2 -rtsopts -prof -fprof-auto \
 		-package ghc \
 		-package ghc-paths \
 		-package filemanip \
