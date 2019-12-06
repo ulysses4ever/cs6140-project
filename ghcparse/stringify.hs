@@ -24,7 +24,7 @@ import Data.Data hiding (Fixity)
 import GHC.Generics (Generic)
 
 -- Pretty printing
---import Text.PrettyPrint.GenericPretty
+import Text.PrettyPrint.GenericPretty
 
 -- Standard
 import Data.Maybe
@@ -41,7 +41,7 @@ data Tree =
   Node String [Tree]
   deriving (Show, Generic)
 
---instance Out Tree
+instance Out Tree
 
 toTreeMatches :: [Match GhcPs (LHsExpr GhcPs)] -> Tree
 toTreeMatches mts = Node "FunDefMatch" $ map toTreeMatch mts
@@ -63,6 +63,7 @@ astToTree =
     `extQ` pat `extQ` lit
     `extQ` matchGroup `extQ` match `extQ` hsMatchContext 
     `extQ` hsOverLit
+    `extQ` hsSplice
     `extQ` rdrName `extQ` occName
     `ext2Q` located
 
@@ -118,7 +119,8 @@ gRHSs (GRHSs _ rhs binds) = Node "GRHSs" $ rhs' ++ binds'
 gRHSs _ = error "panic: GRHSs unknown constructor"
 
 lit :: HsLit GhcPs -> Tree
-lit (HsString st _) = Node "HsString" [Leaf (sourceTextToStr st)]
+lit (HsString _st _) = Leaf "HsString" --Node "HsString" [Leaf (sourceTextToStr st)]
+lit (HsChar _st _) = Leaf "HsChar"
 lit l = generic l
 
 pat :: Pat GhcPs -> Tree
@@ -178,6 +180,13 @@ hsMatchContext :: HsMatchContext (NameOrRdrName (IdP GhcPs)) -> Tree
 hsMatchContext (FunRhs (L _ name) _ _) = 
   Node "FunRhs" [Leaf (rdrNameToStr name)]
 hsMatchContext mc = Leaf (showConstr (toConstr mc))
+
+hsSplice :: HsSplice GhcPs -> Tree
+hsSplice (HsTypedSplice _ _decor name lhs) = Node "HsTypedSplice" $ [astToTree name, astToTree lhs]
+hsSplice (HsUntypedSplice _ _decor name lhs) = Node "HsTypedSplice" $ [astToTree name, astToTree lhs]
+hsSplice (HsQuasiQuote{}) = Leaf "HsQuasiQuote"
+hsSplice (HsSpliced _ final name) = Node "HsTypedSplice" $ [astToTree final, astToTree name]
+hsSplice _ = error "panic: HsSplice unknown constructor"
 
 -- -----------------------------------------------------
 -- simple AST cases

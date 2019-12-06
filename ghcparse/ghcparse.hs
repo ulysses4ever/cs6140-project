@@ -57,15 +57,15 @@ import System.FilePath.Find as Find
 import Control.Monad.Parallel (mapM)
 
 -- Pretty printing
---import Text.PrettyPrint.GenericPretty
+import Text.PrettyPrint.GenericPretty
 
 import Process
 import Stringify
 
 myPrint :: [Tree] -> IO ()
 myPrint =
---  ppLen 80
-   putStrLn . show
+  ppLen 80
+--   putStrLn . show
 
 main :: IO ()
 main = do
@@ -266,7 +266,7 @@ printParseRes ::
   IO ()
 printParseRes _dflags fname (POk _state (L _ res)) = do
   --myPrint $
-    --hsDeclsToTree (hsmodDecls res)
+  --  hsDeclsToTree (hsmodDecls res)
   writeFile (fname ++ ".paths") $!
     intercalate "\n" $ processHsDecls 0 10 200 (hsmodDecls res)
   -- putStrLn "================================================="

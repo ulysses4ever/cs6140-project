@@ -65,7 +65,13 @@ type LeafInfo = (String, Int)
 type C2VPath = (String, String, String, Int)
 
 showPath :: C2VPath -> String
-showPath (l1, r, l2, _n) = l1 ++ "," ++ r ++ "," ++ l2
+showPath (l1, r, l2, _n) = 
+    (map s l1) ++ "," ++ (map s r) ++ "," ++ (map s l2)
+   where
+    s ' ' = '_'
+    s ',' = '#'
+    s c = c
+    
 
 type DList a = [a] -> [a]
 
