@@ -39,20 +39,20 @@ data FunDecl =
 hsDeclsToTree :: [LHsDecl GhcPs] -> [Tree]
 hsDeclsToTree ds = map funDeclToTree (getFunDecls ds)
 
-processHsDecls :: Int -> Int -> [LHsDecl GhcPs] -> [String]
-processHsDecls mn mx ds = pathStrs
+processHsDecls :: Int -> Int -> Int -> [LHsDecl GhcPs] -> [String]
+processHsDecls mn mx num ds = pathStrs
   where
     fds = getFunDecls ds
-    pathStrs = map (processFunDecl mn mx) fds
+    pathStrs = map (processFunDecl mn mx num) fds
 
-processFunDecl :: Int -> Int -> FunDecl -> String
-processFunDecl mn mx fd@(FunDecl id _) = 
+processFunDecl :: Int -> Int -> Int -> FunDecl -> String
+processFunDecl mn mx num fd@(FunDecl name _) = 
   ident ++ " " ++ pathsStr
   where
-    tokens = unIdentifier $ fromAny (rdrNameToStr id)
+    tokens = unIdentifier $ fromAny (rdrNameToStr name)
     ident  = map toLower $ intercalate "|" tokens
     tree   = funDeclToTree fd
-    paths  = genPathsInRange mn mx tree
+    paths  = genPathsInRange mn mx num tree
     !pathsStr = intercalate " " $ map showPath paths
 
 -- -----------------------------------------------------
@@ -260,8 +260,8 @@ showTreeList (t : ts) =
 -- -----------------------------------------------------
 
 funDeclToTree :: FunDecl -> Tree
-funDeclToTree (FunDecl id mts) =
-  Node (rdrNameToStr id) [toTreeMatches mts]
+funDeclToTree (FunDecl name mts) =
+  Node (rdrNameToStr name) [toTreeMatches mts]
 
 getFunDecls :: [LHsDecl GhcPs] -> [FunDecl]
 getFunDecls = catMaybes . map getFunDecl
@@ -271,10 +271,10 @@ getFunDecl :: LHsDecl GhcPs -> Maybe FunDecl
 getFunDecl (L _ (ValD _ (
       FunBind 
         _ 
-        (L _ id)
+        (L _ name)
         (MG _ (L _ alts) _) 
         _
         _
     ))) = 
-    Just (FunDecl id (map unLoc alts))
+    Just (FunDecl name (map unLoc alts))
 getFunDecl _ = Nothing

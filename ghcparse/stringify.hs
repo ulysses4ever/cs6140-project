@@ -16,19 +16,20 @@ import HsSyn
 import RdrName
 import SrcLoc
 import Bag
-
--- Datatype programming
-import Data.Data hiding (Fixity)
 import OccName hiding (occName)
 import Module
 
+-- Datatype programming
+import Data.Data hiding (Fixity)
+import GHC.Generics (Generic)
+
 -- Pretty printing
-import Text.PrettyPrint.GenericPretty
+--import Text.PrettyPrint.GenericPretty
 
 -- Standard
 import Data.Maybe
 
---import qualified Data.ByteString as B
+import qualified Data.ByteString as B
 
 -- =====================================================
 -- code
@@ -38,9 +39,9 @@ import Data.Maybe
 data Tree =
   Leaf String |
   Node String [Tree]
-  deriving (Show, Generic, Eq)
+  deriving (Show, Generic)
 
-instance Out Tree
+--instance Out Tree
 
 toTreeMatches :: [Match GhcPs (LHsExpr GhcPs)] -> Tree
 toTreeMatches mts = Node "FunDefMatch" $ map toTreeMatch mts
@@ -56,7 +57,7 @@ astToTree :: Data a => a -> Tree
 astToTree = 
   generic 
     `ext1Q` list
-    `extQ` string --`extQ` bytestring
+    `extQ` string `extQ` bytestring
     `extQ` hsValBindsLR 
     `extQ` gRHSs `extQ` gRHS
     `extQ` pat `extQ` lit
@@ -117,7 +118,7 @@ gRHSs (GRHSs _ rhs binds) = Node "GRHSs" $ rhs' ++ binds'
 gRHSs _ = error "panic: GRHSs unknown constructor"
 
 lit :: HsLit GhcPs -> Tree
-lit (HsString _ _) = Leaf "HsString" --Node "HsString" [Leaf (sourceTextToStr st)]
+lit (HsString st _) = Node "HsString" [Leaf (sourceTextToStr st)]
 lit l = generic l
 
 pat :: Pat GhcPs -> Tree
@@ -188,8 +189,8 @@ list xs = Node "List" $ map astToTree xs
 string :: String -> Tree
 string s = Leaf $ "%%%" ++ s
 
---bytestring :: B.ByteString -> Tree
---bytestring s = Leaf $ "%%%" ++ show s
+bytestring :: B.ByteString -> Tree
+bytestring s = Node "BS" [ Leaf $ show s ]
 
 occName :: OccName -> Tree
 occName n  =  Leaf $ "%%%" ++ (OccName.occNameString n)
