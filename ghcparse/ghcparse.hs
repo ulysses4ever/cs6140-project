@@ -50,6 +50,7 @@ import Data.Maybe
 import System.Environment (getArgs)
 import System.IO
 import Control.Exception (catch)
+import Control.Monad (unless)
 import System.FilePath.Find as Find
     (extension, fileName, find, (&&?),
      (/~?), (==?))
@@ -70,19 +71,22 @@ myPrint =
 main :: IO ()
 main = do
     args <- getArgs
-    hsFiles <- findHsSources (head args)
+    let wd = head args
+        is_stdout = length args > 1
+    hsFiles <- findHsSources wd
     !dflags <- initDflags
     -- !res <- Control.Monad.Parallel.mapM (parse dflags) hsFiles
-    !res <- Prelude.mapM (parse dflags) hsFiles
+    !res <- Prelude.mapM (parse dflags is_stdout) hsFiles
     let (succR, _) = partition (== True) res
         totalFiles   = length res
         rate = fromIntegral (length succR) / 
                fromIntegral totalFiles
-    putStrLn $ "Total files:.......... " ++ show totalFiles
-    putStrLn $ "Parser success rate:.. " ++ show (rate :: Double)
+    unless is_stdout $ do
+      putStrLn $ "Total files:.......... " ++ show totalFiles
+      putStrLn $ "Parser success rate:.. " ++ show (rate :: Double)
 
-parse :: DynFlags -> String -> IO Bool
-parse dflags0 file = do
+parse :: DynFlags -> Bool -> String -> IO Bool
+parse dflags0 is_stdout file = do
     buf <- hGetStringBuffer file
     dflags1 <- augmentDflags dflags0 buf file
 
@@ -102,7 +106,7 @@ parse dflags0 file = do
           parseDynamicFlagsCmdLine dflags2 [GHC.noLoc "-hide-all-packages"]
 
     let !pres = runParser dflags3 file fileContents Parser.parseModule -- cost of this bang is high
-    printParseRes dflags1 file pres
+    printParseRes dflags1 is_stdout file pres
     return $ presToBool pres
 
 runParser :: DynFlags -> String -> StringBuffer -> P a -> ParseResult a
@@ -261,18 +265,22 @@ findHsSources fp = find isVisible (isHsFile &&? isVisible) fp
 
 printParseRes ::
   DynFlags ->
+  Bool ->   -- use stdout
   String -> -- file name
   ParseResult (Located (HsModule GhcPs)) ->
   IO ()
-printParseRes _dflags fname (POk _state (L _ res)) = do
+printParseRes _dflags is_stdout fname (POk _state (L _ res)) = do
   --myPrint $
   --  hsDeclsToTree (hsmodDecls res)
-  writeFile (fname ++ ".paths") $!
-    intercalate "\n" $ processHsDecls 0 10 200 (hsmodDecls res)
+  let !cts = intercalate "\n" $ processHsDecls 0 30 400 (hsmodDecls res)
+  if is_stdout
+    then putStrLn cts
+    else writeFile (fname ++ ".l30paths") cts
+         
   -- putStrLn "================================================="
   --putStrLn $  -- remove `_` from `_dflags` in arg-list
   --  showSDoc dflags $ showAstData NoBlankSrcSpan res
-printParseRes dflags file (PFailed _ _ msg) = do
+printParseRes dflags _is_stdout file (PFailed _ _ msg) = do
   print "*************************************************"
   print file
   putMsg dflags msg

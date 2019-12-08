@@ -29,6 +29,9 @@ import Stringify
 -- code
 -- =====================================================
 
+thisFuncName :: String
+thisFuncName = "THIS_FUNCTION"
+
 -- Function declaration
 data FunDecl = 
     FunDecl {
@@ -49,7 +52,8 @@ processFunDecl :: Int -> Int -> Int -> FunDecl -> String
 processFunDecl mn mx num fd@(FunDecl name _) = 
   ident ++ " " ++ pathsStr
   where
-    tokens = unIdentifier $ fromAny (rdrNameToStr name)
+    nameStr = rdrNameToStr name
+    tokens = unIdentifier $ fromAny nameStr
     ident  = map toLower $ intercalate "|" tokens
     tree   = funDeclToTree fd
     paths  = genPathsInRange mn mx num tree
@@ -64,6 +68,15 @@ type LeafInfo = (String, Int)
 -- one Code2Vec path with its length
 type C2VPath = (String, String, String, Int)
 
+escapeThisFuncName :: String -> C2VPath -> C2VPath
+escapeThisFuncName name (l1, r, l2, len) =
+    (l1', r, l2', len)
+  where
+    l1' = escape l1
+    l2' = escape l2
+    escape n | n == name = thisFuncName
+             | otherwise = n
+    
 showPath :: C2VPath -> String
 showPath (l1, r, l2, _n) = 
     (map s l1) ++ "," ++ (map s r) ++ "," ++ (map s l2)
@@ -131,69 +144,9 @@ forceD xs = xs []
 concatCD :: [DList a] -> DList a
 concatCD xs = foldl (\acc -> \info -> acc . info) id xs
 
---mapD :: (a -> b) -> DList a -> DList b
---mapD f = foldr ((x:) . f) id
-
---concatDC :: DList [a] -> DList a
---concatDC 
-
---concatDD :: DList (DList a) -> DList a
-
---concat :: List l => l [a] -> l a
---concat = concatDD . liftM fromList
-
-{-
-type C2VInfo = ([LeafInfo], [C2VPath])
-
-genPaths :: Tree -> [C2VPath]
-genPaths t = snd $ genPaths' 0 t
-
-genPathsInRange :: Int -> Int -> Tree -> [C2VPath]
-genPathsInRange mn mx t = filter good $ genPaths t
-  where
-    good (_,_,_,len) = (mn <= len) && (len <= mx)
-
-
-showPath :: C2VPath -> String
-showPath (l1, r, l2, _n) = l1 ++ "," ++ r ++ "," ++ l2
-
-genPaths' :: Int -> Tree -> C2VInfo
-genPaths' len (Leaf s)    = ([(s, len)], [])
-genPaths' len (Node s []) = ([(s, len)], [])
-genPaths' len (Node s ts) = (newLeafs, paths ++ newPaths)
-  where
-    -- leafs and paths for subtrees
-    infos :: [C2VInfo]
-    infos = map (\t -> genPaths' (len+1) t) ts
-    leafInfos :: [[LeafInfo]]
-    leafInfos = map fst infos
-    paths :: [C2VPath]
-    paths = concatMap snd infos
-    makePath :: LeafInfo -> LeafInfo -> C2VPath
-    makePath (s1, n1) (s2, n2) = (s1, s, s2, n1+n2-len-len)
-    makePaths :: [LeafInfo] -> [LeafInfo] -> [C2VPath]
-    makePaths ls1 ls2 = biLoop ls1 ls2 makePath
-    newPaths :: [C2VPath]
-    newPaths = concat $ triLoop leafInfos makePaths
-    newLeafs :: [LeafInfo]
-    newLeafs = concat leafInfos
-
-triLoop :: [a] -> (a -> a -> b) -> [b]
-triLoop []  _f = []
-triLoop (x : xs) f = [f x y | y <- xs] 
-    ++ triLoop xs f
-
-biLoop :: [a] -> [b] -> (a -> b -> c) -> [c]
-biLoop xs ys f = [f x y | x <- xs, y <- ys]
--}
-
---biLoop xs ys f = concatMap (\x -> zipWith f (repeat x) ys) xs
-{-
-biLoop [] _ys _f     = []
-biLoop _xs [] _f     = []
-biLoop (x : xs) ys f = map (\y -> f x y) ys ++
-    biLoop xs ys f
--}
+--------------------------------------------------------------------------
+--               Examples
+--------------------------------------------------------------------------
 
 ex1 :: Tree
 ex1 = Node "X" [Leaf "a", Node "Y" [Leaf "b", Leaf "c"], 
