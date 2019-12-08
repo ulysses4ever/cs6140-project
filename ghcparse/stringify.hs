@@ -44,10 +44,10 @@ data Tree =
 instance Out Tree
 
 toTreeMatches :: [Match GhcPs (LHsExpr GhcPs)] -> Tree
-toTreeMatches mts = Node "FunDefMatch" $ map toTreeMatch mts
+toTreeMatches = Node "FunDefMatch" . map toTreeMatch
 
 toTreeMatch :: Match GhcPs (LHsExpr GhcPs) -> Tree
-toTreeMatch mt = astToTree mt
+toTreeMatch = matchToTreeNoName
 
 -- -----------------------------------------------------
 -- main definition
@@ -178,10 +178,25 @@ match (Match _ ctx pats rhs) = Node "Match" $
       _ -> [Node "Pats" (map astToTree pats)]
 match _ = error "panic: Match unknown constructor"
 
+matchToTreeNoName :: Match GhcPs (LHsExpr GhcPs) -> Tree
+matchToTreeNoName (Match _ ctx pats rhs) = Node "Match" $
+    hsMatchContextNoName ctx
+    : pats' 
+    ++ [astToTree rhs]
+  where
+    pats' = case pats of
+      [] -> []
+      _ -> [Node "Pats" (map astToTree pats)]
+matchToTreeNoName _ = error "panic: Match unknown constructor"
+
 hsMatchContext :: HsMatchContext (NameOrRdrName (IdP GhcPs)) -> Tree
 hsMatchContext (FunRhs (L _ name) _ _) = 
   Node "FunRhs" [Leaf (rdrNameToStr name)]
 hsMatchContext mc = Leaf (showConstr (toConstr mc))
+
+hsMatchContextNoName :: HsMatchContext (NameOrRdrName (IdP GhcPs)) -> Tree
+hsMatchContextNoName (FunRhs _  _ _) = Leaf "FunRhs"
+hsMatchContextNoName mc = Leaf (showConstr (toConstr mc))
 
 hsSplice :: HsSplice GhcPs -> Tree
 hsSplice (HsTypedSplice _ _decor name lhs) = Node "HsTypedSplice" $ [astToTree name, astToTree lhs]

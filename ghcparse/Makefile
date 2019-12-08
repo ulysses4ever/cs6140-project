@@ -8,6 +8,7 @@ ghcparse: ghcparse.hs process.hs stringify.hs
 		-package bytestring \
 		-package monad-parallel \
 		-package GenericPretty \
+		-package hashable \
 		process.hs stringify.hs ghcparse.hs
 
 ghcparse-prof: ghcparse.hs process.hs stringify.hs
@@ -17,6 +18,7 @@ ghcparse-prof: ghcparse.hs process.hs stringify.hs
 		-package filemanip \
 		-package bytestring \
 		-package monad-parallel \
+		-package hashable \
 		process.hs stringify.hs ghcparse.hs
 
 deps:
@@ -26,6 +28,7 @@ deps:
 	cabal v2-install --enable-library-profiling filemanip --lib
 	cabal v2-install --enable-library-profiling GenericPretty --lib
 	cabal v2-install --enable-library-profiling casing --lib
+	cabal v2-install --enable-library-profiling hashable --lib
 
 clean:
 	rm -f *.o *.hi ghcparse *~

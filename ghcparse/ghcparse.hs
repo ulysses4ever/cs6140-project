@@ -70,13 +70,15 @@ myPrint =
 
 main :: IO ()
 main = do
+  -- pp $ map showPath $ genPaths ex1  
     args <- getArgs
     let wd = head args
-        is_stdout = length args > 1
+        is_stdout = "--std_out" `elem` args
+        useHash   = not $ "--no_hash" `elem` args
     hsFiles <- findHsSources wd
     !dflags <- initDflags
     -- !res <- Control.Monad.Parallel.mapM (parse dflags) hsFiles
-    !res <- Prelude.mapM (parse dflags is_stdout) hsFiles
+    !res <- Prelude.mapM (parse dflags useHash is_stdout) hsFiles
     let (succR, _) = partition (== True) res
         totalFiles   = length res
         rate = fromIntegral (length succR) / 
@@ -85,8 +87,8 @@ main = do
       putStrLn $ "Total files:.......... " ++ show totalFiles
       putStrLn $ "Parser success rate:.. " ++ show (rate :: Double)
 
-parse :: DynFlags -> Bool -> String -> IO Bool
-parse dflags0 is_stdout file = do
+parse :: DynFlags -> Bool -> Bool -> String -> IO Bool
+parse dflags0 useHash is_stdout file = do
     buf <- hGetStringBuffer file
     dflags1 <- augmentDflags dflags0 buf file
 
@@ -106,7 +108,7 @@ parse dflags0 is_stdout file = do
           parseDynamicFlagsCmdLine dflags2 [GHC.noLoc "-hide-all-packages"]
 
     let !pres = runParser dflags3 file fileContents Parser.parseModule -- cost of this bang is high
-    printParseRes dflags1 is_stdout file pres
+    printParseRes dflags1 useHash is_stdout file pres
     return $ presToBool pres
 
 runParser :: DynFlags -> String -> StringBuffer -> P a -> ParseResult a
@@ -265,14 +267,16 @@ findHsSources fp = find isVisible (isHsFile &&? isVisible) fp
 
 printParseRes ::
   DynFlags ->
+  Bool->    -- use hashing
   Bool ->   -- use stdout
   String -> -- file name
   ParseResult (Located (HsModule GhcPs)) ->
   IO ()
-printParseRes _dflags is_stdout fname (POk _state (L _ res)) = do
+printParseRes _dflags useHash is_stdout fname (POk _state (L _ res)) = do
   --myPrint $
   --  hsDeclsToTree (hsmodDecls res)
-  let !cts = intercalate "\n" $ processHsDecls 0 30 400 (hsmodDecls res)
+  let !cts = intercalate "\n" $
+        processHsDecls useHash 0 30 400 (hsmodDecls res)
   if is_stdout
     then putStrLn cts
     else writeFile (fname ++ ".l30paths") cts
@@ -280,7 +284,7 @@ printParseRes _dflags is_stdout fname (POk _state (L _ res)) = do
   -- putStrLn "================================================="
   --putStrLn $  -- remove `_` from `_dflags` in arg-list
   --  showSDoc dflags $ showAstData NoBlankSrcSpan res
-printParseRes dflags _is_stdout file (PFailed _ _ msg) = do
+printParseRes dflags _useHash _is_stdout file (PFailed _ _ msg) = do
   print "*************************************************"
   print file
   putMsg dflags msg

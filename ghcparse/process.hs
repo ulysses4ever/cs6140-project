@@ -9,6 +9,7 @@ module Process where
 
 import Prelude --hiding (id)
 import Text.Casing
+import Data.Hashable (hash)
 
 -- GHC
 import HsDecls
@@ -42,14 +43,14 @@ data FunDecl =
 hsDeclsToTree :: [LHsDecl GhcPs] -> [Tree]
 hsDeclsToTree ds = map funDeclToTree (getFunDecls ds)
 
-processHsDecls :: Int -> Int -> Int -> [LHsDecl GhcPs] -> [String]
-processHsDecls mn mx num ds = pathStrs
+processHsDecls :: Bool -> Int -> Int -> Int -> [LHsDecl GhcPs] -> [String]
+processHsDecls useHash mn mx num ds = pathStrs
   where
     fds = getFunDecls ds
-    pathStrs = map (processFunDecl mn mx num) fds
+    pathStrs = map (processFunDecl useHash mn mx num) fds
 
-processFunDecl :: Int -> Int -> Int -> FunDecl -> String
-processFunDecl mn mx num fd@(FunDecl name _) = 
+processFunDecl :: Bool -> Int -> Int -> Int -> FunDecl -> String
+processFunDecl useHash mn mx num fd@(FunDecl name _) = 
   ident ++ " " ++ pathsStr
   where
     nameStr = rdrNameToStr name
@@ -57,17 +58,18 @@ processFunDecl mn mx num fd@(FunDecl name _) =
     ident  = map toLower $ intercalate "|" tokens
     tree   = funDeclToTree fd
     paths  = genPathsInRange mn mx num tree
-    !pathsStr = intercalate " " $ map showPath paths
+    !pathsStr = intercalate " " $ map (showPath useHash) paths
 
 -- -----------------------------------------------------
 -- process Tree
 -- -----------------------------------------------------
 
--- leaf-string and length of the path to the leaf
-type LeafInfo = (String, Int)
--- one Code2Vec path with its length
-type C2VPath = (String, String, String, Int)
+-- path to a leaf
+type LeafInfo = [String]
+-- one Code2Vec path: paths from each of the leaves
+type C2VPath = (LeafInfo, LeafInfo)
 
+{-
 escapeThisFuncName :: String -> C2VPath -> C2VPath
 escapeThisFuncName name (l1, r, l2, len) =
     (l1', r, l2', len)
@@ -76,48 +78,67 @@ escapeThisFuncName name (l1, r, l2, len) =
     l2' = escape l2
     escape n | n == name = thisFuncName
              | otherwise = n
-    
-showPath :: C2VPath -> String
-showPath (l1, r, l2, _n) = 
-    (map s l1) ++ "," ++ (map s r) ++ "," ++ (map s l2)
-   where
-    s ' ' = '_'
-    s ',' = '#'
-    s c = c
-    
+-}
+
+showPath :: Bool -> C2VPath -> String
+showPath _ ([], _) = error "showPath: empty half-path, left"
+showPath _ (_, []) = error "showPath: empty half-path, right"
+showPath useHash (_ : s1, s2) = intercalate ","
+    [ x1
+    ,  path'
+    , x2
+    ]
+  where
+    (s2', x2) = splitLast s2
+    s1' = reverse s1
+    s1'' = tail s1'
+    x1 = head s1'
+    path = intercalate "^" $
+      filter
+      (not . null)
+      [showHalfPath '^' s1'',
+        showHalfPath '_' s2']
+    path' = if useHash then show $ hash path else path
+
+showHalfPath :: Char -> [String] -> String
+showHalfPath sep xs = intercalate [sep] xs
+
+splitLast :: [a] -> ([a], a)
+splitLast [] = error "splitLast: empty list"
+splitLast [x] = ([], x)
+splitLast (x:xs) =
+   let (xs', lastx) = splitLast xs in (x:xs', lastx)
 
 type DList a = [a] -> [a]
 
-type C2VInfoD = (DList LeafInfo, DList C2VPath)
+type C2VInfoD = ([LeafInfo], DList C2VPath)
 
 genPaths :: Tree -> [C2VPath]
-genPaths t = forceD $ snd $ genPaths' 0 t
+genPaths t = forceD $ snd $ genPaths' t
 
 genPathsInRange :: Int -> Int -> Int -> Tree -> [C2VPath]
 genPathsInRange mn mx num t = take num $ filter good $ genPaths t
   where
-    good (_,_,_,len) = (mn <= len) && (len <= mx)
+    good (s1, s2) = (mn <= len) && (len <= mx) where
+      len = length s1 + length s2 - 1
 
-genPaths' :: Int -> Tree -> C2VInfoD
-genPaths' len (Leaf s)    = (((s, len):), id)
-genPaths' len (Node s []) = (((s, len):), id)
-genPaths' len (Node s ts) = (newLeafs, paths . newPaths)
+genPaths' :: Tree -> C2VInfoD
+genPaths' (Leaf s)    = ([[s]], id)
+genPaths' (Node s []) = ([[s]], id)
+genPaths' (Node s ts) = (newLeafs, paths . newPaths)
   where
     -- leafs and paths for subtrees
     infos :: [C2VInfoD]
-    infos = map (\t -> genPaths' (len+1) t) ts
-
-    leafInfosD :: [DList LeafInfo]
-    leafInfosD = map fst infos
+    infos = map genPaths' ts
 
     leafInfos :: [[LeafInfo]]
-    leafInfos = map forceD leafInfosD
+    leafInfos = map fst infos
 
     paths :: DList C2VPath
     paths = concatCD $ map snd infos
 
     makePath :: LeafInfo -> LeafInfo -> C2VPath
-    makePath (s1, n1) (s2, n2) = (s1, s, s2, n1+n2-len-len)
+    makePath s1 s2 = (s : s1, s : s2)
 
     makePaths :: [LeafInfo] -> [LeafInfo] -> DList C2VPath
     makePaths ls1 ls2 = fromList $ biLoop ls1 ls2 makePath
@@ -125,8 +146,13 @@ genPaths' len (Node s ts) = (newLeafs, paths . newPaths)
     newPaths :: DList C2VPath
     newPaths =  (triLoop leafInfos makePaths :: DList C2VPath)
     
-    newLeafs :: DList LeafInfo
-    newLeafs = concatCD leafInfosD
+    newLeafs :: [LeafInfo]
+    newLeafs =
+      [ s:leaf
+      | nodeInfo <- leafInfos
+      , leaf <- nodeInfo
+      ]
+
 
 triLoop :: [a] -> (a -> a -> DList b) -> DList b
 triLoop []  _f = id
@@ -134,6 +160,9 @@ triLoop (x : xs) f = (concatCD [f x y | y <- xs]) . (triLoop xs f)
 
 fromList :: [a] -> DList a
 fromList xs = (xs ++)
+
+singletonD :: a -> DList a
+singletonD = (:)
 
 biLoop :: [a] -> [b] -> (a -> b -> c) -> [c]
 biLoop xs ys f = [f x y | x <- xs, y <- ys]
@@ -149,8 +178,10 @@ concatCD xs = foldl (\acc -> \info -> acc . info) id xs
 --------------------------------------------------------------------------
 
 ex1 :: Tree
-ex1 = Node "X" [Leaf "a", Node "Y" [Leaf "b", Leaf "c"], 
-                Node "Z" [Leaf "p", Node "W" [Leaf "q", Leaf "s"]]]
+ex1 = Node "X" [Leaf "a"
+               , Node "Y" [Leaf "b", Leaf "c"]
+               , Node "E" []
+               , Node "Z" [Leaf "p", Node "W" [Leaf "q", Leaf "s"]]]
 
 ex1' :: Tree
 ex1' = Node "W" [Leaf "q", Leaf "s"]
