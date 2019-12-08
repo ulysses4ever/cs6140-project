@@ -119,8 +119,8 @@ gRHSs (GRHSs _ rhs binds) = Node "GRHSs" $ rhs' ++ binds'
 gRHSs _ = error "panic: GRHSs unknown constructor"
 
 lit :: HsLit GhcPs -> Tree
-lit (HsString _st _) = Leaf "HsString" --Node "HsString" [Leaf (sourceTextToStr st)]
-lit (HsChar _st _) = Leaf "HsChar"
+lit (HsString st _) = Node "HsString" [Leaf (sourceTextToStr st)]
+lit (HsChar ch _) = Node "HsChar" [Leaf $ sourceTextToStr ch]
 lit l = generic l
 
 pat :: Pat GhcPs -> Tree
@@ -158,7 +158,9 @@ overLitValToStr (HsFractional (FL txt _ _)) = sourceTextToStr txt
 overLitValToStr (HsIsString txt _) = sourceTextToStr txt
 
 sourceTextToStr :: SourceText -> String
-sourceTextToStr (SourceText str) = str
+sourceTextToStr (SourceText str) = filter (not . flip elem mask) str
+  where
+    mask = ", "
 sourceTextToStr NoSourceText = "NoSourceText"
 
 matchGroup :: MatchGroup GhcPs (LHsExpr GhcPs) -> Tree

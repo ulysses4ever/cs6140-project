@@ -1,1 +1,1 @@
---command="ghci -O2 -package ghc -package ghc-paths -package filemanip -package bytestring -package monad-parallel process.hs stringify.hs ghcparse.hs"
+--command="ghci -ignore-dot-ghci -O2 -package ghc -package ghc-paths -package filemanip -package bytestring -package monad-parallel process.hs stringify.hs ghcparse.hs"
