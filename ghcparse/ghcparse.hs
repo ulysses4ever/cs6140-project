@@ -276,10 +276,10 @@ printParseRes _dflags useHash is_stdout fname (POk _state (L _ res)) = do
   --myPrint $
   --  hsDeclsToTree (hsmodDecls res)
   let !cts = intercalate "\n" $
-        processHsDecls useHash 0 30 400 (hsmodDecls res)
+        processHsDecls useHash 0 10 200 (hsmodDecls res)
   if is_stdout
     then putStrLn cts
-    else writeFile (fname ++ ".l30paths") cts
+    else writeFile (fname ++ ".c2vvshortpaths") cts
          
   -- putStrLn "================================================="
   --putStrLn $  -- remove `_` from `_dflags` in arg-list

@@ -51,7 +51,7 @@ processHsDecls useHash mn mx num ds = pathStrs
 
 processFunDecl :: Bool -> Int -> Int -> Int -> FunDecl -> String
 processFunDecl useHash mn mx num fd@(FunDecl name _) = 
-  ident ++ " " ++ pathsStr
+    ident ++ " " ++ pathsStr
   where
     nameStr = rdrNameToStr name
     tokens = unIdentifier $ fromAny nameStr
@@ -84,9 +84,9 @@ showPath :: Bool -> C2VPath -> String
 showPath _ ([], _) = error "showPath: empty half-path, left"
 showPath _ (_, []) = error "showPath: empty half-path, right"
 showPath useHash (_ : s1, s2) = intercalate ","
-    [ x1
+    [ x1'
     ,  path'
-    , x2
+    , x2'
     ]
   where
     (s2', x2) = splitLast s2
@@ -99,6 +99,12 @@ showPath useHash (_ : s1, s2) = intercalate ","
       [showHalfPath '^' s1'',
         showHalfPath '_' s2']
     path' = if useHash then show $ hash path else path
+    escape ',' = '&'
+    escape '\n' = '*'
+    escape ' ' = '%'
+    escape c = c
+    x1' = map escape x1
+    x2' = map escape x2
 
 showHalfPath :: Char -> [String] -> String
 showHalfPath sep xs = intercalate [sep] xs

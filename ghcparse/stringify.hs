@@ -160,7 +160,7 @@ overLitValToStr (HsIsString txt _) = sourceTextToStr txt
 sourceTextToStr :: SourceText -> String
 sourceTextToStr (SourceText str) = filter (not . flip elem mask) str
   where
-    mask = ", "
+    mask = ", \n"
 sourceTextToStr NoSourceText = "NoSourceText"
 
 matchGroup :: MatchGroup GhcPs (LHsExpr GhcPs) -> Tree
@@ -195,7 +195,7 @@ hsMatchContext (FunRhs (L _ name) _ _) =
 hsMatchContext mc = Leaf (showConstr (toConstr mc))
 
 hsMatchContextNoName :: HsMatchContext (NameOrRdrName (IdP GhcPs)) -> Tree
-hsMatchContextNoName (FunRhs _  _ _) = Leaf "FunRhs"
+hsMatchContextNoName (FunRhs _  _ _) = Leaf "THIS_FUNCTION"
 hsMatchContextNoName mc = Leaf (showConstr (toConstr mc))
 
 hsSplice :: HsSplice GhcPs -> Tree
